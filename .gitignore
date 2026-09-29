@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.vercel/
+out/
+next-env.d.ts
+build/
+.cache/
+# Secrets (GEMINI_API_KEY, Upstash keys) live in .env.local; the example file is committed.
+.env*
+.env.local
+!.env.example
+*.tsbuildinfo
+*-debug.log*
+logs/
+*.log
