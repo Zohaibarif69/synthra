@@ -230,7 +230,7 @@ export function Workspace() {
     const res = await aiPost<AiSchemaResult>('schema', { tables: [schemaRequestTable('dataset', dataset, columns)] });
     setAiSchema(res.ok
       ? { status: 'done', model: res.model, columns: res.data.columns, decisions: {} }
-      : { status: 'unavailable', message: res.message, decisions: {} });
+      : { status: 'unavailable', message: res.message, code: res.code, decisions: {} });
   };
 
   const handleAiChoose = (column: string, choice: 'ai' | 'rules', ai: AiColumnSuggestion) => {
@@ -485,6 +485,7 @@ export function Workspace() {
             }
             aiSchema={aiSchema}
             onAiChoose={handleAiChoose}
+            onAiRetry={() => { if (upload) runAiSchemaReview(upload.fileId, schema); }}
             onDescribed={handleDescribed}
           />
         )}

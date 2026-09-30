@@ -10,6 +10,8 @@ import { allowedTransforms } from '../../lib/engine/privacy';
 export interface AiSchemaState {
   status: 'idle' | 'loading' | 'done' | 'unavailable';
   message?: string;
+  /** Failure code from the AI route, used to explain what went wrong. */
+  code?: string;
   model?: string;
   columns?: AiColumnSuggestion[];
   /** Per column: which side the user picked where rules and AI disagree. */
@@ -26,9 +28,23 @@ function disagreements(col: ColumnSchema, ai: AiColumnSuggestion): string[] {
   return out;
 }
 
-export function AiSchemaReview({ schema, state, onChoose }: {
+/** Plain words for why the review didn't run; the technical detail stays in the tooltip. */
+function failureText(code?: string): string {
+  switch (code) {
+    case 'timeout': return 'AI took too long to answer. Built-in detection is in use.';
+    case 'rate_limited': return 'AI limit reached for now. Built-in detection is in use.';
+    case 'invalid_output': return 'AI gave an unusable answer. Built-in detection is in use.';
+    case 'refused': return 'AI declined this request. Built-in detection is in use.';
+    case 'auth': return 'The AI key was rejected. Built-in detection is in use.';
+    default: return "Couldn't reach AI. Built-in detection is in use.";
+  }
+}
+
+export function AiSchemaReview({ schema, state, onChoose, onRetry }: {
   schema: ColumnSchema[];
   state: AiSchemaState;
+  /** Runs the review again (shown when it didn't work). */
+  onRetry?: () => void;
   /** Applies the AI suggestion to a column (or records that the rules were kept). */
   onChoose: (column: string, choice: 'ai' | 'rules', ai: AiColumnSuggestion) => void;
 }) {
@@ -49,7 +65,14 @@ export function AiSchemaReview({ schema, state, onChoose }: {
         </p>
       )}
 
-      {state.status === 'unavailable' && <AiUnavailable message="Couldn't reach AI. Built-in detection is in use." detail={state.message} />}
+      {state.status === 'unavailable' && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <AiUnavailable message={failureText(state.code)} detail={state.message} />
+          {onRetry && state.code !== 'auth' && (
+            <button type="button" onClick={onRetry} className="text-xs font-medium text-[var(--color-primary)] hover:underline">Try again</button>
+          )}
+        </div>
+      )}
 
       {state.status === 'done' && state.columns && (
         <>

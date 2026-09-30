@@ -73,7 +73,8 @@ const R = {
   age: /(^|_)age(_years)?$/,
   company: /(^|_)(company|business|employer|organi[sz]ation|org|vendor|supplier|merchant|brand|firm|manufacturer|bank)(_name)?(_|$)/,
   personName: /(^|_)(first|last|middle|full|sur|given|family)?_?name$/,
-  nameExclude: /(company|product|item|file|brand|city|country|street|category|business|org|store|shop|merchant|vendor|supplier|bank|project|team|dept|department|course|school|university|hospital|app|host|domain|event|place|region|state|model|device|plan|campaign|column|table|field|pet|breed|song|album|movie|book|game|role|job|title)/,
+  /** Words that, right before "name", mean the name of a thing: company_name, app_name, product_category_name. */
+  nameExclude: /^(company|product|item|file|brand|city|country|street|category|business|org|organization|organisation|store|shop|merchant|vendor|supplier|bank|employer|firm|manufacturer|agency|institution|college|hotel|restaurant|airline|project|team|dept|department|course|school|university|hospital|app|host|domain|event|place|region|state|model|device|plan|campaign|column|table|field|pet|breed|song|album|movie|book|game|role|job|title)s?$/,
   currency: /(^|_)(price|amount|amt|cost|salary|wage|wages|revenue|total|subtotal|fee|fees|balance|income|payment|spend|spent|budget|profit|tax|discount|charge|charges|debit|credit|sales|pay|rent|fare|premium|mrp)(_|$)/,
   quantity: /(^|_)(qty|quantity|count|units|stock|items|pieces|seats|visits|clicks|orders|number_of|num_of)(_|$)/,
   status: /(^|_)(status|stage|phase)(_|$)/,
@@ -82,6 +83,15 @@ const R = {
   flag: /^(is|has|can|should|was|did|allow)_|(_flag|_enabled|_active|_verified)$|^(active|enabled|verified|flag|subscribed|churned|default)$/,
   codeLike: /(phone|mobile|cell|tel|fax|zip|postal|postcode|pin_code|cnic|ssn|account|card|iban|nic|passport)/,
 };
+
+/**
+ * True when "<word>_name" is the name of a thing rather than a person. Only the word right before "name"
+ * counts, so applicant_name, job_seeker_name and project_manager_name are people, but company_name isn't.
+ */
+function isThingName(n: string): boolean {
+  const owner = n.replace(/_?name$/, '').split('_').filter(Boolean).pop();
+  return owner !== undefined && R.nameExclude.test(owner);
+}
 
 const COUNTRY_VALUES = new Set([
   'afghanistan', 'argentina', 'australia', 'austria', 'bangladesh', 'belgium', 'brazil', 'canada', 'chile', 'china',
@@ -265,8 +275,10 @@ function detectSemantic(f: Facts): Semantic {
   if (/(^|_)currency(_code)?$/.test(n)) return sem('Category', 'low', 'preserve');
   if (R.weakId.test(n) && !numeric) return sem('Identifier', 'medium', 'preserve');
   if (R.weakId.test(n) && numeric && f.unique) return sem('Identifier', 'medium', 'preserve');
-  if (R.company.test(n) && t === 'string') return sem('Company', 'low', 'preserve');
-  if (R.personName.test(n) && !R.nameExclude.test(n) && t === 'string') return sem('Person Name', 'high', 'synthetic');
+  // "bank_account_holder_name" is a person even though it mentions a bank: for *_name columns, the word
+  // right before "name" decides.
+  if (R.company.test(n) && t === 'string' && !(R.personName.test(n) && !isThingName(n))) return sem('Company', 'low', 'preserve');
+  if (R.personName.test(n) && !isThingName(n) && t === 'string') return sem('Person Name', 'high', 'synthetic');
   if (numeric && (R.currency.test(n) || f.currencyMarked)) return sem('Currency', 'low', 'preserve');
   if (t === 'integer' && R.quantity.test(n)) return sem('Quantity', 'low', 'preserve');
   if (t === 'integer' && f.unique && f.sequential) return sem('Identifier', 'medium', 'preserve');

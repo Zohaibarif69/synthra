@@ -4,6 +4,7 @@ import { SEMANTIC_TYPES } from '@/lib/constants';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const Request = z.object({
   tables: z.array(z.object({
@@ -14,24 +15,26 @@ const Request = z.object({
   })).min(1).max(20),
 });
 
+// Lenient: one odd value (a type name not on the list, a missing reason) falls back to a safe default
+// instead of discarding the whole review. The rules sent to Gemini are unchanged.
 const Output = z.object({
   columns: z.array(z.object({
     table: z.string(),
     column: z.string(),
-    semanticType: z.enum(SEMANTIC_TYPES),
-    pii: z.boolean(),
-    privacyLevel: z.enum(['low', 'medium', 'high']),
-    transform: z.enum(['preserve', 'mask', 'hash', 'synthetic', 'noise']),
-    reason: z.string(),
+    semanticType: z.enum(SEMANTIC_TYPES).catch('Other'),
+    pii: z.boolean().catch(false),
+    privacyLevel: z.enum(['low', 'medium', 'high']).catch('low'),
+    transform: z.enum(['preserve', 'mask', 'hash', 'synthetic', 'noise']).catch('preserve'),
+    reason: z.string().catch(''),
   })),
   relationships: z.array(z.object({
     parentTable: z.string(),
     parentColumn: z.string(),
     childTable: z.string(),
     childColumn: z.string(),
-    cardinality: z.enum(['1:1', '1:N', 'N:N']),
-    reason: z.string(),
-  })),
+    cardinality: z.enum(['1:1', '1:N', 'N:N']).catch('1:N'),
+    reason: z.string().catch(''),
+  })).catch([]),
 });
 
 const SYSTEM = `You classify columns of tabular datasets for a synthetic data generator.
@@ -48,7 +51,8 @@ export async function POST(request: globalThis.Request) {
   const prompt = tables.map(t =>
     `Table "${t.name}" columns: ${t.columns.join(', ')}\nSample rows (JSON):\n${t.sampleRows.map(r => JSON.stringify(r)).join('\n')}`,
   ).join('\n\n');
-  const outcome = await callJson({ schema: Output, system: SYSTEM, prompt, maxTokens: 8000 });
+  // The biggest AI job (every column, with reasons), so it gets more time than the others.
+  const outcome = await callJson({ schema: Output, system: SYSTEM, prompt, maxTokens: 8000, timeoutMs: 45_000 });
   if (!outcome.ok) return reply(outcome);
   // Keep only suggestions for columns that actually exist.
   const known = new Set(tables.flatMap(t => t.columns.map(c => `${t.name}.${c}`)));

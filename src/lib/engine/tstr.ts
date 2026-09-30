@@ -99,14 +99,17 @@ export function tstrTargets(schema: ColumnSchema[], profile: DatasetProfile | un
 }
 
 /** Names that usually mean "the thing to predict". */
-const OUTCOME_NAME = /(^|_)(churn(ed)?|default(ed)?|fraud(ulent)?|target|label|class|outcome|result|converted|purchased?|approved|survived|attrition|left|is_fraud|y)(_|$)/i;
+const OUTCOME_NAME = /(^|_)(churn(ed)?|default(ed)?|fraud(ulent)?|target|label|class|outcome|result|converted|purchased?|approved|rejected|survived|attrition|left|pass(ed)?|fail(ed)?|success(ful)?|won|win|admitted|hired|retained|clicked|responded|subscribed|cancell?ed|renewed|returned|y)(_|$)/i;
+/** Describe who someone is rather than an outcome; rarely what anyone wants to predict. */
+const DEMOGRAPHIC_NAME = /(^|_)(gender|sex|city|country|region|province|state|nationality|religion|ethnicity|language|marital_status)(_|$)/i;
 
 /**
- * Best first choice first: outcome-like names, then yes/no, then categories with few values, then numbers.
+ * Best first choice first: outcome-like names, then yes/no, then categories with few values, then numbers,
+ * and demographic columns (gender, city…) last.
  * The first target is the default in the UI, so it should be the one a person would pick.
  */
 function targetRank(t: TstrTarget): number {
-  const outcome = OUTCOME_NAME.test(t.column) ? 0 : 1000;
+  const outcome = OUTCOME_NAME.test(t.column) ? 0 : DEMOGRAPHIC_NAME.test(t.column) ? 2000 : 1000;
   const kind = t.task === 'regression' ? 500 : t.classes === 2 ? 0 : 100 + (t.classes ?? 0);
   return outcome + kind;
 }

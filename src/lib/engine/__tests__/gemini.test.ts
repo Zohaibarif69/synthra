@@ -158,3 +158,55 @@ describe('every AI route works end to end against the fake Gemini', () => {
     expect(await mod.GET().json()).toEqual({ configured: true, model: 'gemini-flash-latest', cache: 'memory' });
   });
 });
+
+describe('schema review (the biggest AI job)', () => {
+  const body = { tables: [{ name: 'dataset', columns: ['full_name', 'churned'], sampleRows: [{ full_name: 'A**** K***', churned: true }] }] };
+  const answer = (semanticType: string) => ({
+    columns: [
+      { table: 'dataset', column: 'full_name', semanticType: 'Person Name', pii: true, privacyLevel: 'high', transform: 'synthetic', reason: 'A name' },
+      { table: 'dataset', column: 'churned', semanticType, pii: false, privacyLevel: 'low', transform: 'preserve' },
+    ],
+    relationships: [],
+  });
+  const req = () => new Request('http://x/api', { method: 'POST', body: JSON.stringify(body), headers: { 'x-forwarded-for': String(Math.random()) } });
+
+  it('an off-list value no longer throws away the whole review', async () => {
+    fakeGemini([ok(JSON.stringify(answer('Boolean')))]); // "Boolean" is not one of the semantic types; reason missing
+    const mod = await import('../../../app/api/ai/schema/route');
+    const json = await (await mod.POST(req())).json();
+    expect(json.ok).toBe(true);
+    expect(json.data.columns).toHaveLength(2);
+    expect(json.data.columns[1]).toMatchObject({ column: 'churned', semanticType: 'Other', reason: '' });
+    expect(json.data.columns[0].semanticType).toBe('Person Name');
+    expect(JSON.stringify(calls[0].body.generationConfig.responseJsonSchema)).not.toContain('"default"');
+  });
+
+  it('a slow answer (20 s) now succeeds instead of timing out at 15 s', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn((_u: string, init: RequestInit) => new Promise((resolve, reject) => {
+      const t = setTimeout(() => resolve(new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(answer('Category')) }] }, finishReason: 'STOP' }] }), { status: 200 })), 20_000);
+      init.signal!.addEventListener('abort', () => { clearTimeout(t); reject(Object.assign(new Error('aborted'), { name: 'AbortError' })); });
+    })));
+    const mod = await import('../../../app/api/ai/schema/route');
+    const pending = mod.POST(req());
+    await vi.advanceTimersByTimeAsync(21_000);
+    const json = await (await pending).json();
+    vi.useRealTimers();
+    expect(json.ok).toBe(true);
+  });
+
+  it('gives up at 45 s with a clear timeout code', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn((_u: string, init: RequestInit) => new Promise((_, reject) => {
+      init.signal!.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    })));
+    const mod = await import('../../../app/api/ai/schema/route');
+    const pending = mod.POST(req());
+    await vi.advanceTimersByTimeAsync(46_000);
+    const json = await (await pending).json();
+    vi.useRealTimers();
+    expect(json).toMatchObject({ ok: false, code: 'timeout' });
+    expect(json.message).toMatch(/45s/);
+  });
+});
+

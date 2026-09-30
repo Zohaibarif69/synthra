@@ -63,6 +63,14 @@ describe('TSTR (train on synthetic, test on real)', () => {
     await expect(runTstr({ ...small, config: config(1), target: 'churned' })).rejects.toThrow(/at least 60/);
   });
 
+  it('puts outcome columns first and demographic columns last', () => {
+    const rows = Array.from({ length: 80 }, (_, i) => ({ gender: i % 2 ? 'male' : 'female', city: ['A', 'B', 'C'][i % 3], passed: i % 3 ? 'yes' : 'no', score: (i * 7) % 100 }));
+    const d = uploaded(['gender,city,passed,score', ...rows.map(r => `${r.gender},${r.city},${r.passed},${r.score}`)].join('\n'));
+    const order = tstrTargets(d.schema, d.profile).map(t => t.column);
+    expect(order[0]).toBe('passed');
+    expect(order.indexOf('gender')).toBeGreaterThan(order.indexOf('score'));
+  });
+
   it('rates utility on a clear scale', () => {
     expect([utilityRating(95), utilityRating(80), utilityRating(60), utilityRating(20), utilityRating(null)]).toEqual(['excellent', 'good', 'fair', 'poor', 'n/a']);
   });

@@ -24,8 +24,9 @@ function schemaProblem(schema: ColumnSchema[]): string | null {
 }
 
 export function StepInputTabular({
-  upload, schema, profile, onAnalyzed, onSchemaChange, onClear, onNext, library, aiSchema, onAiChoose, onDescribed,
+  upload, schema, profile, onAnalyzed, onSchemaChange, onClear, onNext, library, aiSchema, onAiChoose, onAiRetry, onDescribed,
 }: {
+  onAiRetry?: () => void;
   aiSchema?: AiSchemaState;
   onAiChoose?: (column: string, choice: 'ai' | 'rules', ai: AiColumnSuggestion) => void;
   /** A schema built from a plain-English description (AI or rule-based). */
@@ -102,7 +103,7 @@ export function StepInputTabular({
                 </div>
               )}
               {!analyzing && upload && aiSchema && onAiChoose && (
-                <AiSchemaReview schema={schema} state={aiSchema} onChoose={onAiChoose} />
+                <AiSchemaReview schema={schema} state={aiSchema} onChoose={onAiChoose} onRetry={onAiRetry} />
               )}
             </>
           ) : (

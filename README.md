@@ -10,7 +10,7 @@
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Gemini](https://img.shields.io/badge/AI-Google%20Gemini-8B5CF6?logo=googlegemini&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-134%20passing-22C55E)
+![Tests](https://img.shields.io/badge/tests-186%20passing-22C55E)
 ![Deploy](https://img.shields.io/badge/deploy-Vercel-000000?logo=vercel&logoColor=white)
 
 </div>
@@ -190,7 +190,7 @@ unusable as forgeries:
 | Data engine | Web Worker, PapaParse, Faker.js, seeded mulberry32 RNG, Zod |
 | Export | jsPDF + AutoTable, JSZip |
 | AI & infrastructure | Google Gemini API, Upstash Redis, Vercel |
-| Testing | Vitest (134 tests) |
+| Testing | Vitest (186 tests) |
 
 ## Project layout
 
@@ -263,7 +263,7 @@ button that uses the browser's built-in speech recognition: free, with words app
 
 ## Tests
 
-`npm test` runs 134 unit tests in `src/lib/engine/__tests__/`:
+`npm test` runs 186 unit tests in `src/lib/engine/__tests__/`:
 
 | File | Covers |
 | --- | --- |
@@ -274,9 +274,11 @@ button that uses the browser's built-in speech recognition: free, with words app
 | `quality.test.ts` | Each score formula with known inputs, N/A instead of invented numbers, drift lowers scores and raises warnings |
 | `export.test.ts` | CSV (RFC 4180, BOM, CRLF), JSON, SQL types and keys, escaping, NULL, ISO dates, byte-identical output per seed |
 | `safeguards.test.ts` | No real bank names, `TEST-` identifiers, watermark and footer on every PDF page, synthetic flags, CSV formula guard, date-range queries |
-| `gemini.test.ts` | Gemini requests and error handling (invalid key, rate limit, safety block, timeout, firewall), JSON schema, every AI route |
+| `gemini.test.ts` | Gemini requests and error handling (invalid key, rate limit, safety block, timeout, firewall), JSON schema, every AI route; the schema review survives slow (20 s) and slightly off-list answers |
 | `cache.test.ts` | Cache hits and misses, failures never cached, shared Redis cache, Redis outage fallback, 20-per-minute rate limit |
 | `voice.test.ts` | Urdu digit conversion, transcript joining, Urdu detection, error messages |
 | `tstr.test.ts` | TSTR targets (never IDs or personal data; outcome columns such as `churned` offered first), ≥ 85% utility on a churn dataset across seeds, R² and multi-class targets, "not reliable" for unpredictable targets, 75/25 holdout, reproducibility |
 | `latent.test.ts` | Inverse normal accuracy, category relationships learned into the profile, generated data keeps "month-to-month customers churn more", old saved profiles generate exactly as before |
+| `infer.test.ts` | Personal names detected by the word before "name" (`applicant_name`, `job_seeker_name`… are protected; `company_name`, `app_name`… are not people) |
+| `store.test.ts` | Multi-file relational uploads keep every table in memory (6+ files), oldest dropped only past the limits |
 | `rename.test.ts` | Saved history, schemas and settings carried over from the previous app name |

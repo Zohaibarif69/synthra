@@ -16,6 +16,7 @@ export const AI_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-flash-latest
 /** Tried in order only when a model name is not found (404) for this key. */
 const FALLBACK_MODELS = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite'];
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+/** Default per-request limit; big jobs (the schema review) pass a longer one. */
 const TIMEOUT_MS = 15_000;
 
 function apiKey(): string | null {
@@ -50,7 +51,8 @@ function geminiSchema(schema: z.ZodType): unknown {
     if (!node || typeof node !== 'object') return node;
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(node)) {
-      if (k === '$schema' || k === 'additionalProperties' || k === '$id') continue;
+      // "default" comes from lenient .catch() parsing; it is ours, not a rule for the model.
+      if (k === '$schema' || k === 'additionalProperties' || k === '$id' || k === 'default') continue;
       // zod's .int() adds ±2^53 bounds that add nothing and can trip the schema check.
       if ((k === 'minimum' || k === 'maximum') && typeof v === 'number' && Math.abs(v) >= Number.MAX_SAFE_INTEGER) continue;
       out[k] = clean(v);
@@ -62,9 +64,9 @@ function geminiSchema(schema: z.ZodType): unknown {
 
 type Attempt = { ok: true; body: GeminiResponse } | { ok: false; status: number; body: GeminiResponse | null; timeout?: boolean; network?: boolean };
 
-async function post(model: string, key: string, payload: unknown): Promise<Attempt> {
+async function post(model: string, key: string, payload: unknown, timeoutMs: number): Promise<Attempt> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`${API_BASE}/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
@@ -83,8 +85,8 @@ async function post(model: string, key: string, payload: unknown): Promise<Attem
   }
 }
 
-function toFailure(a: Extract<Attempt, { ok: false }>): Failure {
-  if (a.timeout) return fail('timeout', `AI did not answer within ${TIMEOUT_MS / 1000}s.`);
+function toFailure(a: Extract<Attempt, { ok: false }>, timeoutMs: number): Failure {
+  if (a.timeout) return fail('timeout', `AI did not answer within ${timeoutMs / 1000}s.`);
   if (a.network) return fail('error', 'AI unavailable: could not reach the Gemini API.');
   // A non-JSON error page means something between us and Google answered (a proxy or firewall), not Google.
   if (!a.body?.error) return fail('error', `AI unavailable: the Gemini API could not be reached (HTTP ${a.status} from a network proxy or firewall, not from Google). Try another network.`);
@@ -109,7 +111,10 @@ export async function callJson<S extends z.ZodType>(opts: {
   system: string;
   prompt: string;
   maxTokens?: number;
+  /** Per-request time limit; defaults to 15 s. */
+  timeoutMs?: number;
 }): Promise<AiResponse<z.infer<S>>> {
+  const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
   const apiKeyValue = apiKey();
   if (!apiKeyValue) return fail('no_key', 'AI unavailable: no GEMINI_API_KEY is configured on the server.');
 
@@ -142,16 +147,16 @@ export async function callJson<S extends z.ZodType>(opts: {
   let usedModel = AI_MODEL;
   for (const model of models) {
     usedModel = model;
-    result = await post(model, apiKeyValue, payload(true));
+    result = await post(model, apiKeyValue, payload(true), timeoutMs);
     // Schema not accepted by this model → same model, schema described in the prompt instead.
     const keyProblem = !result.ok && (result.body?.error?.details ?? []).some(d => d.reason === 'API_KEY_INVALID');
-    if (!result.ok && result.status === 400 && !keyProblem) result = await post(model, apiKeyValue, payload(false));
+    if (!result.ok && result.status === 400 && !keyProblem) result = await post(model, apiKeyValue, payload(false), timeoutMs);
     if (result.ok || result.status !== 404) break;
   }
   if (!result) return fail('error', 'AI error: no model available.');
   if (!result.ok) {
     if (result.status === 404) return fail('error', `AI unavailable: none of the Gemini models (${models.join(', ')}) is available for this key. Set GEMINI_MODEL in .env.local.`);
-    return toFailure(result);
+    return toFailure(result, timeoutMs);
   }
 
   const body = result.body;

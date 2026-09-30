@@ -5,7 +5,9 @@ import { useEffect, useState } from 'react';
 import type { AiResponse, Cell, ColumnSchema, ParsedDataset } from '../types';
 import { maskValue } from '../engine/privacy';
 
-const CLIENT_TIMEOUT_MS = 20_000;
+/** Browser-side limits, a little above the server's so the server's clearer message arrives first. */
+const CLIENT_TIMEOUT_MS: Record<string, number> = { schema: 60_000 };
+const DEFAULT_CLIENT_TIMEOUT_MS = 30_000;
 const SAMPLE_ROWS = 10;
 const MAX_VALUE_CHARS = 80;
 
@@ -13,7 +15,7 @@ export const AI_FALLBACK_MESSAGE = 'AI unavailable, using rule-based detection';
 
 export async function aiPost<T>(route: 'schema' | 'content' | 'edge-cases' | 'query' | 'explain', body: unknown): Promise<AiResponse<T>> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS[route] ?? DEFAULT_CLIENT_TIMEOUT_MS);
   try {
     const res = await fetch(`/api/ai/${route}`, {
       method: 'POST',
