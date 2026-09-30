@@ -5,7 +5,9 @@ import { Wand2 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { AiBadge, AiUnavailable } from '../../components/common/AiBadge';
 import type { ColumnRule, ColumnSchema } from '../../lib/types';
-import { aiPost, fetchAiStatus } from '../../lib/ai/client';
+import { aiPost, fetchAiStatus, useAiStatus } from '../../lib/ai/client';
+import { hasUrduScript, useVoiceInput } from '../../lib/voice';
+import { VoiceControls, VoiceStatus } from '../../components/common/VoiceInput';
 import { parsePromptSchema, type PromptSchema } from '../../lib/engine/promptSchema';
 import { defaultPrivacy } from '../../lib/engine/infer';
 
@@ -26,7 +28,9 @@ export interface DescribedSchema extends PromptSchema {
 export function DescribeSchemaBox({ onResult }: { onResult: (r: DescribedSchema) => void }) {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [outcome, setOutcome] = useState<{ source: 'ai' | 'rules'; columns: number; note?: string } | null>(null);
+  const [outcome, setOutcome] = useState<{ source: 'ai' | 'rules'; columns: number; note?: string; urdu?: boolean } | null>(null);
+  const aiStatus = useAiStatus();
+  const voice = useVoiceInput(text, setText, { allowUrdu: !!aiStatus?.configured });
 
   const run = async () => {
     setBusy(true);
@@ -52,7 +56,7 @@ export function DescribeSchemaBox({ onResult }: { onResult: (r: DescribedSchema)
     }
     const fallback = parsePromptSchema(text);
     if (fallback.columns.length) onResult({ ...fallback, source: 'rules' });
-    setOutcome({ source: 'rules', columns: fallback.columns.length, note });
+    setOutcome({ source: 'rules', columns: fallback.columns.length, note, urdu: hasUrduScript(text) });
     setBusy(false);
   };
 
@@ -62,14 +66,19 @@ export function DescribeSchemaBox({ onResult }: { onResult: (r: DescribedSchema)
         <Wand2 size={14} className="text-[var(--color-primary)]" />
         <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Describe your dataset</h3>
       </div>
-      <textarea
-        aria-label="Describe your dataset"
-        value={text}
-        onChange={e => setText(e.target.value)}
-        rows={2}
-        placeholder="e.g. generate 1000 Pakistani customers with name, city, phone, age 18-60"
-        className="w-full px-3 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-sm bg-transparent text-[var(--color-text-primary)] focus:border-[var(--color-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
+      <div className="relative">
+        <textarea
+          aria-label="Describe your dataset"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          rows={2}
+          dir="auto"
+          placeholder="e.g. generate 1000 Pakistani customers with name, city, phone, age 18-60"
+          className="w-full pl-3 pr-28 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-sm bg-transparent text-[var(--color-text-primary)] focus:border-[var(--color-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
       />
+        <VoiceControls voice={voice} className="absolute right-2 bottom-2.5" />
+      </div>
+      <VoiceStatus voice={voice} />
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="min-w-0">
           {outcome?.source === 'ai' && (
@@ -79,7 +88,11 @@ export function DescribeSchemaBox({ onResult }: { onResult: (r: DescribedSchema)
             <div className="space-y-0.5">
               {outcome.note && <AiUnavailable message="Couldn't reach AI. Built-in parser used." detail={outcome.note} />}
               <p className="text-xs text-[var(--color-text-secondary)]">
-                {outcome.columns ? `${outcome.columns} columns created. Review them below.` : 'No column list found. Try "… with name, email, age 18-60".'}
+                {outcome.columns
+                  ? `${outcome.columns} columns created. Review them below.`
+                  : outcome.urdu
+                    ? 'Urdu requests need AI. Try again in a moment, or use English.'
+                    : 'No column list found. Try "… with name, email, age 18-60".'}
               </p>
             </div>
           )}

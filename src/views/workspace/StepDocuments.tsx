@@ -19,6 +19,8 @@ import { parseBankQuery, type ParsedBankQuery } from '../../lib/engine/bankQuery
 import { region } from '../../lib/engine/regions';
 import { InvoicePreview } from './InvoicePreview';
 import { BankStatementPreview } from './BankStatementPreview';
+import { hasUrduScript, useVoiceInput } from '../../lib/voice';
+import { VoiceControls, VoiceStatus } from '../../components/common/VoiceInput';
 
 export type DocumentRequest =
   | { docType: 'invoice'; invoiceConfig: InvoiceConfig }
@@ -53,6 +55,8 @@ export function StepDocuments({ seed, onSeedChange, onNext }: {
   const [itemsBusy, setItemsBusy] = useState(false);
   const [itemsNote, setItemsNote] = useState<string | null>(null);
   const aiStatus = useAiStatus();
+  const queryVoice = useVoiceInput(query, setQuery, { allowUrdu: !!aiStatus?.configured });
+  const businessVoice = useVoiceInput(business, setBusiness, { allowUrdu: !!aiStatus?.configured });
 
   // Documents need a seed for the live preview; pick one if none is set.
   useEffect(() => { if (seed === undefined) onSeedChange(generateSeed()); }, [seed, onSeedChange]);
@@ -202,10 +206,14 @@ export function StepDocuments({ seed, onSeedChange, onNext }: {
             {aiStatus?.configured && <div className="space-y-2 border-t border-[var(--color-border)] pt-3">
               <label className={labelCls}>Seller’s business</label>
               <div className="flex gap-2">
-                <input aria-label="Seller’s business" value={business} onChange={e => setBusiness(e.target.value)} placeholder="e.g. textile exporter in Faisalabad"
-                  className="flex-1 px-3 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-sm bg-transparent focus:border-[var(--color-primary)] outline-none" />
+                <div className="relative flex-1">
+                  <input aria-label="Seller’s business" dir="auto" value={business} onChange={e => setBusiness(e.target.value)} placeholder="e.g. textile exporter in Faisalabad"
+                    className="w-full pl-3 pr-28 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-sm bg-transparent focus:border-[var(--color-primary)] outline-none" />
+                  <VoiceControls voice={businessVoice} className="absolute right-1.5 top-1/2 -translate-y-1/2" />
+                </div>
                 <Button size="sm" variant="outline" loading={itemsBusy} disabled={!aiStatus?.configured} onClick={suggestItems}>Suggest items</Button>
               </div>
+              <VoiceStatus voice={businessVoice} />
               {itemsNote && <AiUnavailable message="Built-in catalogue used" detail={itemsNote} />}
               {invoiceConfig.aiCatalog?.length ? (
                 <div className="flex items-start justify-between gap-2 bg-[var(--color-surface-2)] rounded-[var(--radius-md)] px-3 py-2">
@@ -242,14 +250,19 @@ export function StepDocuments({ seed, onSeedChange, onNext }: {
                 <Wand2 size={14} className="text-[var(--color-primary)]" />
                 <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Describe the statements</h3>
               </div>
-              <textarea
-                aria-label="Describe the statements"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                rows={2}
-                placeholder="e.g. last 90 days, never below 500, 40 transactions, savings account"
-                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-sm bg-transparent text-[var(--color-text-primary)] focus:border-[var(--color-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
+              <div className="relative">
+                <textarea
+                  aria-label="Describe the statements"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  rows={2}
+                  dir="auto"
+                  placeholder="e.g. last 90 days, never below 500, 40 transactions, savings account"
+                  className="w-full pl-3 pr-28 py-2 border border-[var(--color-border)] rounded-[var(--radius-md)] text-sm bg-transparent text-[var(--color-text-primary)] focus:border-[var(--color-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
               />
+                <VoiceControls voice={queryVoice} className="absolute right-2 bottom-2.5" />
+              </div>
+              <VoiceStatus voice={queryVoice} />
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-[var(--color-text-muted)]">
                   Periods, counts, balances, amounts, account type and currency.
@@ -263,7 +276,7 @@ export function StepDocuments({ seed, onSeedChange, onNext }: {
                     : aiStatus?.configured ? <AiUnavailable message="Built-in parser used" detail={parsed.note} /> : null}
                   {parsed.understood.length
                     ? parsed.understood.map(u => <p key={u} className="flex items-start gap-1.5 text-xs text-[var(--color-success)]"><CheckCircle size={12} className="shrink-0 mt-0.5" /> {u}</p>)
-                    : <p className="text-xs text-[var(--color-warning)]">Nothing recognised. Settings unchanged.</p>}
+                    : <p className="text-xs text-[var(--color-warning)]">{hasUrduScript(query) ? 'Urdu requests need AI. Try again in a moment, or use English.' : 'Nothing recognised. Settings unchanged.'}</p>}
                   {parsed.ignored.length > 0 && (
                     <p className="flex items-start gap-1.5 text-xs text-[var(--color-text-muted)]"><Info size={12} className="shrink-0 mt-0.5" /> Not understood: {parsed.ignored.map(s => `“${s}”`).join(', ')}</p>
                   )}

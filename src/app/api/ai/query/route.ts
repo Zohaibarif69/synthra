@@ -58,7 +58,9 @@ export async function POST(request: globalThis.Request) {
       schema: BankOutput,
       system: `You convert a request for synthetic bank statements into settings. Today is ${b.today}.
 Use null for anything not mentioned. Dates as YYYY-MM-DD ("last 90 days" ends today). "never below X" or "balance over X" is minBalance.
-"understood" lists each setting you extracted as a short plain-English phrase.`,
+"understood" lists each setting you extracted as a short plain-English phrase.
+The request may be in English, Urdu (Urdu script) or Roman Urdu, e.g. "پچھلے 90 دن" or "pichle 90 din" = last 90 days,
+"بچت اکاؤنٹ" = savings account, "500 سے کم نہ ہو" = never below 500. Always write "understood" in English.`,
       prompt: b.text,
       maxTokens: 1500,
     });
@@ -86,7 +88,10 @@ Use null for anything not mentioned. Dates as YYYY-MM-DD ("last 90 days" ends to
     system: `You design a table schema for a synthetic data generator from a plain-English request.
 Use snake_case column names. Include an id column (integer, Identifier, unique, not nullable) unless the request clearly doesn't want one.
 Use min/max for numeric ranges mentioned (e.g. "age 18-60"), allowedValues for explicit lists of categories, otherwise null / [].
-privacyLevel high for names, emails, phones, addresses and official IDs. rowCount and locale null if not mentioned.`,
+privacyLevel high for names, emails, phones, addresses and official IDs. rowCount and locale null if not mentioned.
+The request may be in English, Urdu (Urdu script) or Roman Urdu, e.g. "1000 پاکستانی گاہک، نام، شہر، فون اور عمر 18 سے 60".
+Understand it in any of these, but always answer in English: column names in English snake_case (name, city, phone, age).
+Urdu requests about Pakistan imply locale "PK".`,
     prompt: b.text,
     maxTokens: 3000,
   });

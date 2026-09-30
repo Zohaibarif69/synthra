@@ -1,60 +1,154 @@
-# ✦ Synthra
+<div align="center">
 
-Synthra is a synthetic data platform that runs in the browser. Upload a sample file or describe a schema, and it
-generates realistic fake data that keeps the statistics of the original but none of its private values. It then
-shows how good that data is.
+<img src="src/app/icon.svg" width="72" alt="Synthra logo" />
 
-All generation, validation and export runs client-side, in a Web Worker. The only server code is an optional AI
-layer: small Next.js API routes that call Google Gemini when a `GEMINI_API_KEY` is configured (a free Google AI Studio key works).
+# Synthra
+
+**Realistic, privacy-safe synthetic data: tabular, relational and documents, generated in your browser.**
+
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Gemini](https://img.shields.io/badge/AI-Google%20Gemini-8B5CF6?logo=googlegemini&logoColor=white)
+![Tests](https://img.shields.io/badge/tests-123%20passing-22C55E)
+![Deploy](https://img.shields.io/badge/deploy-Vercel-000000?logo=vercel&logoColor=white)
+
+</div>
+
+Teams need realistic data to build, test and demo software, but real data is sensitive, slow to get approved and
+rarely covers the edge cases that break systems. **Synthra learns the shape of your data and generates a
+statistically faithful copy that contains none of the original records.**
+
+Upload a sample, design a schema, or simply describe what you need, in English or Urdu, by typing or speaking.
+Synthra infers types and relationships, generates anything from a single table to a linked multi-table database
+or a batch of invoices and bank statements, then **proves the result**: every quality and privacy score is
+measured from the generated rows, never assumed.
+
+Your data never leaves your device. The entire engine runs client-side in a Web Worker; the only server code is
+a thin AI layer that sends Google Gemini column names and a few masked sample rows, never your dataset.
+
+## Highlights
+
+- **Private by design.** Generation, validation and export run in the browser. Personal values are masked
+  before anything reaches the AI, and outputs are checked so no original personal value is ever reproduced.
+- **Faithful, not random.** Learned distributions, preserved correlations, referential integrity and business
+  rules, verified afterwards with statistical tests.
+- **Measured quality.** A Quality Observatory scores fidelity, integrity, rules, uniqueness, nulls and privacy,
+  and shows the formula behind every number.
+- **Reproducible.** The same seed and settings always produce byte-identical exports.
+- **Built-in safeguards.** Generated documents are watermarked and use fictional banks and `TEST-` identifiers,
+  so they can't pass as real financial documents.
 
 ## Features
 
-| Area | What it does |
+### Generate
+
+| Feature | What it does |
 | --- | --- |
-| **Input** | CSV/JSON upload (up to 50 MB), a manual schema builder, "describe your data" in plain text, and saved schemas |
-| **Schema inference** | Column types, date formats, semantic types (name, email, phone, city, currency, identifier…), privacy level, unique keys; foreign keys across several uploaded tables, including min/max children per parent |
-| **Tabular generation** | Learns percentiles and category frequencies and preserves numeric correlations with a Gaussian copula. Configurable row count, seed, null rate, outlier rate and edge cases (boundaries, rare categories, long text, near-duplicates) |
-| **Relational generation** | Several tables with 1:1, 1:N and N:N relationships (join tables are created automatically), zero orphan rows, and cross-table rules such as `orders.total = SUM(quantity × unit_price)` |
-| **Documents** | Invoices with regional tax rules and templates (PK, IN, US, GB, DE, FR, CA, AU) and bank statements with running balances. Query-style input such as *"last 90 days, never below 500"* |
-| **Privacy** | Per column: keep, synthetic replacement, masking, SHA-256 hashing, or Laplace noise with a privacy budget ε. Synthetic values are checked against the upload, so an original PII value is never reproduced |
+| **Tabular data** | Learns percentiles and category frequencies, preserves numeric correlations with a Gaussian copula, and generates up to 1M rows with your row count, seed, null rate, outlier rate and edge cases (boundaries, rare categories, long text, near-duplicates) |
+| **Relational data** | Linked tables with 1:1, 1:N and N:N relationships (join tables created automatically), zero orphan rows, and cross-table rules such as `orders.total = SUM(quantity × unit_price)` |
+| **Invoices** | Regional templates for PK, IN, US, GB, DE, FR, CA and AU: local currency, date format and tax label (GST, VAT, Sales Tax…), with line items, tax and totals that always reconcile |
+| **Bank statements** | Realistic merchants and exact running balances, configured in plain language: *"last 90 days, savings account, never below 500"* |
+| **Flexible input** | CSV/JSON upload (up to 50 MB), a manual schema builder, saved schemas, or a plain-language description, typed or spoken |
+
+### Trust & quality
+
+| Feature | What it does |
+| --- | --- |
+| **Privacy controls** | Per column: keep, synthetic replacement, masking, SHA-256 hashing, or Laplace noise with a privacy budget ε |
+| **Validation** | Row counts, types, uniqueness, null rates, Kolmogorov–Smirnov test, category distance (TVD), correlation drift, referential integrity, totals, business rules and personal-data leak checks |
+| **Quality Observatory** | Turns validation into scores with a radar chart, per-column real-vs-synthetic comparisons and severity-sorted warnings; exportable as a JSON or PDF report |
 | **Business rules** | Min/max ranges, allowed values, regex patterns and `column A < column B`, enforced during generation and verified afterwards |
-| **Live preview** | 20 rows regenerated about 300 ms after any setting changes |
-| **Validation & quality** | Row count, types, uniqueness, null rates, KS test, category TVD, correlation drift, referential integrity, totals, business rules, PII leaks. The Quality Observatory turns these into scores, and each score shows its formula and inputs |
-| **Relationships** | Interactive ER diagram (React Flow + dagre): drag to create a relationship, and see the real edges and cardinalities |
-| **Export** | CSV, JSON, SQL dump (CREATE TABLE + INSERT, with PK/FK), ZIP per table, PDF invoices, statements and quality report. Exports are byte-identical for the same seed |
-| **History** | Every run is stored with its config, seed and learned statistics, so it can be regenerated exactly even after a reload |
-| **AI (optional)** | Gemini reviews detected schemas, writes realistic free text for text columns, suggests edge cases, parses queries and explains quality scores. AI results carry an **AI** badge; without a key, the app says AI is unavailable and uses the rule-based engine |
+| **Misuse safeguards** | Fictional banks, `TEST-` tax IDs and account numbers, watermarked PDFs and previews, synthetic flags in exports, and CSV formula-injection protection |
+| **Reproducibility** | Seeded generation and a run history that regenerates any dataset exactly |
+
+### Experience
+
+| Feature | What it does |
+| --- | --- |
+| **Guided workspace** | A six-step flow, Input → Schema → Configure → Generate → Validate → Export, with results you can review before exporting |
+| **Live preview** | 20 sample rows regenerate about 300 ms after any setting changes |
+| **Relationships diagram** | Interactive ER diagram: drag between columns to create relationships, and see cardinalities and integrity on every edge |
+| **Voice input** | Speak your request in **English or Urdu (اردو)**; words appear live in the box, and Urdu digits are converted automatically |
+| **Export** | CSV, JSON, SQL dump (`CREATE TABLE` + `INSERT` with primary and foreign keys), ZIP per table, and PDF invoices and statements |
+
+### AI layer (Google Gemini)
+
+| Feature | What it does |
+| --- | --- |
+| **Schema review** | Checks detected column meanings and personal data, and lets you choose where it disagrees |
+| **Natural-language setup** | Turns a request in English, Urdu or Roman Urdu into a schema or statement settings |
+| **Realistic content** | Writes natural free text (descriptions, notes, product names) and business-specific invoice items |
+| **Edge-case suggestions** | Proposes data-specific edge cases (e.g. "order date before signup date") to inject |
+| **Quality explanation** | Summarises the quality report in plain English and suggests what to change |
+| **Built for reliability** | Answers cached for 7 days and rate-limited per visitor (Upstash Redis on Vercel); results carry an **AI** badge, and the built-in engine takes over quietly if AI is unavailable |
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  subgraph Browser
-    UI["Next.js pages<br/>(src/views)"]
-    Client["Engine client<br/>src/lib/engine/client.ts"]
-    subgraph Worker["Web Worker (tabular.worker.ts)"]
-      Pipeline["pipeline.ts<br/>generate → privacy → rules"]
-      Gen["tabular.ts / relational.ts<br/>invoice.ts / bank.ts"]
-      Val["validate.ts + stats.ts"]
-      Exp["export.ts / exportDocuments.ts"]
-    end
-    Parse["parse.ts → infer.ts → profile.ts"]
-    Quality["quality.ts"]
-    Stores[("resultStore / historyStore<br/>schemaLibrary / settingsStore<br/>(memory + localStorage)")]
-  end
-  subgraph Server["Next.js API routes (optional)"]
-    AI["/api/ai/*<br/>schema · content · edge-cases · query · explain"]
-  end
-  Gemini["Gemini API<br/>gemini-flash-latest"]
+  User(["👤 User<br/>type · upload · speak"])
 
-  UI -- upload --> Parse --> UI
-  UI --> Client -- postMessage --> Pipeline
-  Pipeline --> Gen
-  Pipeline --> Val
-  Client -- export --> Exp
-  Val --> Quality --> UI
-  UI <--> Stores
-  UI -- "column names, ≤10 masked sample rows" --> AI --> Gemini
+  subgraph Browser["🖥️ Browser: your data never leaves it"]
+    direction LR
+    Voice["🎤 Speech recognition<br/>English · اردو"]
+    UI["Next.js interface<br/>workspace · quality · relationships · history"]
+    Parse["Parse → infer → profile<br/>types, distributions, correlations"]
+    subgraph Worker["⚙️ Web Worker"]
+      direction TB
+      Generate["Generate<br/>tabular · relational · invoices · statements"]
+      Protect["Privacy transforms<br/>+ business rules"]
+      Validate["Validate<br/>KS test · integrity · leak checks"]
+      Export["Export<br/>CSV · JSON · SQL · ZIP · PDF"]
+      Generate --> Protect --> Validate
+      Protect --> Export
+    end
+    Quality["📊 Quality Observatory<br/>scores + warnings"]
+    Store[("localStorage<br/>history · schemas · settings")]
+  end
+
+  subgraph Cloud["☁️ Vercel serverless: AI only"]
+    API["/api/ai/*<br/>schema · content · edge cases<br/>query · explain"]
+    Redis[("Upstash Redis<br/>cache · rate limit")]
+  end
+
+  Gemini(["✦ Google Gemini"])
+
+  User --> UI
+  User --> Voice --> UI
+  UI --> Parse --> Generate
+  Validate --> Quality --> UI
+  UI <--> Store
+  UI -- "column names +<br/>≤10 masked rows" --> API
+  API <--> Redis
+  API --> Gemini
+
+  classDef browser fill:#EEF2FF,stroke:#6366F1,color:#1E1B4B;
+  classDef worker fill:#E0E7FF,stroke:#4F46E5,color:#1E1B4B;
+  classDef cloud fill:#F5F3FF,stroke:#8B5CF6,color:#2E1065;
+  classDef ext fill:#ECFDF5,stroke:#10B981,color:#064E3B;
+  class Voice,UI,Parse,Quality,Store browser;
+  class Generate,Protect,Validate,Export worker;
+  class API,Redis cloud;
+  class Gemini,User ext;
+  style Browser fill:#F8FAFF,stroke:#6366F1,stroke-width:1.5px,color:#1E1B4B
+  style Worker fill:#EEF2FF,stroke:#818CF8,stroke-dasharray:4 3,color:#1E1B4B
+  style Cloud fill:#FAF5FF,stroke:#8B5CF6,stroke-width:1.5px,color:#2E1065
+```
+
+Every dataset goes through the same pipeline:
+
+```mermaid
+flowchart LR
+  A["📥 Input<br/>file · schema<br/>text · voice"] --> B["🔍 Infer<br/>types · PII<br/>relationships"]
+  B --> C["📈 Learn<br/>distributions<br/>correlations"]
+  C --> D["⚙️ Generate<br/>seeded<br/>engine"]
+  D --> E["🛡️ Protect<br/>privacy ·<br/>rules"]
+  E --> F["✅ Validate<br/>stats ·<br/>integrity"]
+  F --> G["📊 Score<br/>quality<br/>report"]
+  G --> H["📤 Export<br/>CSV · SQL<br/>PDF · ZIP"]
+  classDef step fill:#EEF2FF,stroke:#6366F1,color:#1E1B4B;
+  class A,B,C,D,E,F,G,H step;
 ```
 
 * **Deterministic:** every random choice comes from a seeded mulberry32 generator (`random.ts`), and each
@@ -84,21 +178,33 @@ unusable as forgeries:
 - **Safe CSV.** Text cells starting with `=`, `+`, `-`, `@`, tab or carriage return are prefixed with `'`
   so spreadsheets open them as text instead of running them as formulas (plain numbers are unchanged).
 
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 16 (App Router), React 19, TypeScript |
+| Styling & charts | Tailwind CSS 4, Recharts, React Flow + Dagre |
+| Data engine | Web Worker, PapaParse, Faker.js, seeded mulberry32 RNG, Zod |
+| Export | jsPDF + AutoTable, JSZip |
+| AI & infrastructure | Google Gemini API, Upstash Redis, Vercel |
+| Testing | Vitest (123 tests) |
+
 ## Project layout
 
 ```
 src/
   app/                 Next.js routes, error pages, /api/ai/* route handlers
-  components/          Layout (sidebar, top bar), common UI (Button, Modal, Toast, ErrorBoundary…)
-  views/               Page components; views/workspace, views/quality, views/relationships
+  components/          Layout (sidebar, top bar) and common UI (Button, Modal, Toast, VoiceInput…)
+  views/               Pages: workspace, quality, relationships, history, datasets, settings, help
   lib/
-    types.ts           All shared types
+    types.ts           Shared types
     engine/            Parsing, inference, generation, privacy, rules, validation, quality, export
     engine/__tests__/  Vitest unit tests
-    ai/                Server-side Gemini helper + browser client
+    ai/                Gemini client and server helper, cache and rate limit
+    voice.ts           Voice input (English and Urdu)
 ```
 
-## Running it
+## Getting started
 
 Requirements: Node.js 20 or newer.
 
@@ -110,53 +216,75 @@ npm run dev          # http://localhost:3000
 On Windows PowerShell, if scripts are blocked, use `npm.cmd run dev` (or run
 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once).
 
-Other scripts:
-
 ```bash
 npm run build        # production build (type-checks everything)
 npm start            # serve the production build
-npm test             # Vitest unit tests for the engine
+npm test             # unit tests
 npm run test:watch   # tests in watch mode
 ```
 
-### Enabling AI (optional)
+### Enabling AI
 
 ```bash
 cp .env.example .env.local
 # edit .env.local:  GEMINI_API_KEY=your-key-from-aistudio.google.com
 ```
 
-Get the key free at [aistudio.google.com](https://aistudio.google.com) → **Get API key** (no credit card).
-Free-tier limits are per Google Cloud project and shown in AI Studio; when a limit is hit the app shows
-"rate limited" and keeps working with the rule-based engine. On the free tier Google may use requests to
-improve its products, so demo with test or public data (detected personal values are masked before sending
-either way). Optionally pin a model with `GEMINI_MODEL=` in `.env.local`.
+Get a free key at [aistudio.google.com](https://aistudio.google.com) → **Get API key** (no credit card). Restart
+the dev server, then check **Settings → Engine & AI**. `.env.local` is git-ignored, and the key is only ever read
+on the server (`src/lib/ai/server.ts`).
 
-Then restart the dev server. The top-bar "Local engine" popover and **Settings → Engine & AI** show whether the
-key was picked up. `.env.local` is git-ignored.
+- The default model is `gemini-flash-latest`; pin another with `GEMINI_MODEL=` in `.env.local`.
+- Free-tier limits are per Google Cloud project and shown in AI Studio. When a limit is reached, the built-in
+  engine takes over until it resets.
+- On the free tier Google may use requests to improve its products, so use test or public data. Detected
+  personal values are masked before sending either way.
 
-### AI cache and rate limit (optional, recommended on Vercel)
+### AI cache and rate limit
 
-Every AI answer is cached for 7 days under a SHA-256 hash of the request, so asking the same question
-again is instant and doesn't use Gemini quota. Each visitor may make 20 AI requests per minute per route.
+Every AI answer is cached for 7 days under a SHA-256 hash of the request, so repeating a request is instant and
+uses no Gemini quota. Each visitor may make 20 AI requests per minute per route.
 
 - **With Upstash Redis** (`UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`, or the `KV_REST_API_URL` /
-  `KV_REST_API_TOKEN` pair Vercel adds when you connect Upstash under **Storage**), the cache and the limit are
-  shared by every server instance. This matters on Vercel, which runs many short-lived instances.
-- **Without it**, both live in the server's memory, which is fine for local development.
+  `KV_REST_API_TOKEN` pair Vercel adds when you connect Upstash), the cache and limit are shared by every server
+  instance, which matters on Vercel.
+- **Without it**, both live in server memory, which is fine for local development.
 - If Redis is unreachable, the app makes one quick attempt, then uses memory for a minute. AI never waits on Redis.
-- Only a hash of the request and the model's answer are stored. The prompt itself, including any sample rows, is never stored.
-  Upstash's free tier (256 MB, 500K commands/month) is far more than this app needs.
+- Only a hash of the request and the model's answer are stored, never the prompt or sample rows. Upstash's free
+  tier (256 MB, 500K commands/month) is far more than this app needs.
+
+### Voice input
+
+The **Describe your dataset**, **Describe the statements** and **Seller's business** boxes have a microphone
+button that uses the browser's built-in speech recognition: free, with words appearing as you speak.
+
+- Works in Chrome, Edge and Safari; where the browser has no speech recognition (e.g. Firefox), the mic is hidden.
+- The **EN | اردو** switch appears when AI is connected, since Gemini interprets Urdu and Roman Urdu requests.
+- The browser asks for microphone permission once. Voice needs HTTPS (e.g. Vercel) or localhost, and an internet
+  connection, because Chrome converts speech on Google's servers.
+
+### Deploying to Vercel
+
+1. Push the repository to GitHub, then **Add New → Project** in Vercel and import it. Next.js is detected
+   automatically; no `vercel.json` is needed.
+2. Under **Settings → Environment Variables**, add `GEMINI_API_KEY`.
+3. Under **Storage**, create a free **Upstash Redis** database and connect it to the project.
+4. Redeploy, then check **Settings → Engine & AI** in the app: *AI: Connected* and *Upstash Redis*.
 
 ## Tests
 
-`npm test` runs the unit tests in `src/lib/engine/__tests__/`:
+`npm test` runs 123 unit tests in `src/lib/engine/__tests__/`:
 
 | File | Covers |
 | --- | --- |
-| `tabular.test.ts` | Seeded RNG and derived streams, same seed → identical data, exact row counts, null rate within ±3 points, unique columns, value types |
-| `relational.test.ts` | Parent-before-child order, zero orphan FKs (RI = 100), 1:N min/max, 1:1, N:N join tables, cycle rejection, order totals = Σ quantity × unit price |
-| `documents.test.ts` | Invoice line/subtotal/tax/total arithmetic, regional templates, bank running and closing balances, "never below 500" query |
-| `privacy.test.ts` | Masking formats, hash consistency, Laplace noise vs ε, no original PII values in output, leak detection |
-| `quality.test.ts` | Each score formula with known inputs, N/A instead of invented numbers, null-rate drift lowers the score and raises a warning |
-| `export.test.ts` | CSV BOM/CRLF/quoting (RFC 4180), JSON rows, SQL types, PK/FK, escaping, NULL, ISO dates, byte-identical CSV for the same seed |
+| `tabular.test.ts` | Seeded RNG and derived streams, same seed → identical data, exact row counts, null rates, unique columns, value types |
+| `relational.test.ts` | Parent-before-child order, zero orphan foreign keys, 1:N min/max, 1:1, N:N join tables, cycle rejection, order totals |
+| `documents.test.ts` | Invoice arithmetic, regional templates, running and closing balances, "never below 500" queries |
+| `privacy.test.ts` | Masking formats, hash consistency, Laplace noise vs ε, no original personal values in output, leak detection |
+| `quality.test.ts` | Each score formula with known inputs, N/A instead of invented numbers, drift lowers scores and raises warnings |
+| `export.test.ts` | CSV (RFC 4180, BOM, CRLF), JSON, SQL types and keys, escaping, NULL, ISO dates, byte-identical output per seed |
+| `safeguards.test.ts` | No real bank names, `TEST-` identifiers, watermark and footer on every PDF page, synthetic flags, CSV formula guard, date-range queries |
+| `gemini.test.ts` | Gemini requests and error handling (invalid key, rate limit, safety block, timeout, firewall), JSON schema, every AI route |
+| `cache.test.ts` | Cache hits and misses, failures never cached, shared Redis cache, Redis outage fallback, 20-per-minute rate limit |
+| `voice.test.ts` | Urdu digit conversion, transcript joining, Urdu detection, error messages |
+| `rename.test.ts` | Saved history, schemas and settings carried over from the previous app name |

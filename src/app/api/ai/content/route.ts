@@ -40,7 +40,7 @@ export async function POST(request: globalThis.Request) {
   if (b.kind === 'invoice_items') {
     const outcome = await callJson({
       schema: Items,
-      system: 'You write realistic invoice line items (products or services) for a synthetic invoice generator. Prices are typical unit prices in US dollars.',
+      system: 'You write realistic invoice line items (products or services) for a synthetic invoice generator. Prices are typical unit prices in US dollars. The business description may be in English, Urdu or Roman Urdu (e.g. "فیصل آباد میں ٹیکسٹائل ایکسپورٹر" = textile exporter in Faisalabad); always write the item names and units in English.',
       prompt: `Business: ${b.business || 'general B2B supplier'}. Region: ${b.locale}. Give ${b.count} distinct line items with a short name, a unit (e.g. hrs, pcs, mo, kg, licence) and a realistic unit price range in USD (minUsd < maxUsd).`,
       maxTokens: 6000,
     });
