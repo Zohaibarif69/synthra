@@ -8,7 +8,7 @@ import { downloadBlob, qualityReportPdf } from '../lib/engine/exportDocuments';
 import { Button } from '../components/common/Button';
 import { EmptyState } from '../components/common/EmptyState';
 import { useToast } from '../components/common/Toast';
-import { resultTables, useLatestResult } from '../lib/resultStore';
+import { latestTstrResult, resultTables, useLatestResult } from '../lib/resultStore';
 import { computeQuality, mergeRelationalMetrics } from '../lib/engine/quality';
 import { formatRelativeTime } from '../lib/formatters';
 import { ScoreSummaryCard } from './quality/ScoreSummaryCard';
@@ -18,6 +18,7 @@ import { ColumnComparison } from './quality/ColumnComparison';
 import { WarningsList } from './quality/WarningsList';
 import { ColumnQualityTable } from './quality/ColumnQualityTable';
 import { ExplainPanel } from './quality/ExplainPanel';
+import { UtilityPanel } from './quality/UtilityPanel';
 
 export function Quality() {
   const router = useRouter();
@@ -67,6 +68,7 @@ export function Quality() {
         config: generation.config ?? null,
       },
       overallScore: report.overall,
+      mlUtility: latestTstrResult() ?? null,
       dimensions: report.dimensions,
       warnings: report.warnings,
       columns: report.columns,
@@ -128,6 +130,8 @@ export function Quality() {
         <DimensionBars dimensions={report.dimensions} />
         <QualityRadar dimensions={report.dimensions} />
       </div>
+
+      {latest.result && <UtilityPanel key={generation.id} result={latest.result} source={latest.tstrSource} />}
 
       {selected && <div className="space-y-2">
         {tables.length > 1 && (

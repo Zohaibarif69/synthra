@@ -479,6 +479,11 @@ export interface DatasetProfile {
   columnCount: number;
   columns: ColumnProfile[];
   correlations: NumericCorrelation[];
+  /**
+   * Gaussian-copula correlations across numeric, categorical and boolean columns, used by the generator.
+   * Absent in profiles saved before it existed; those keep generating exactly as they did.
+   */
+  latentCorrelations?: NumericCorrelation[];
 }
 
 // ─── Tabular generation results ──────────────────────────────────────────────

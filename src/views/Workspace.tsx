@@ -392,7 +392,12 @@ export function Workspace() {
     } else {
       const tab = result as TabularResult;
       setTabularResult(tab);
-      setLatestResult({ generation: gen, result: tab, sourceName });
+      setLatestResult({
+        generation: gen, result: tab, sourceName,
+        tstrSource: job?.kind !== 'relational' && job?.kind !== 'documents' && job?.fileId && job.profile
+          ? { schema: job.schema, config: job.config, fileId: job.fileId }
+          : undefined,
+      });
       saveToHistory(gen, tab, tab.validation.overall, computeQuality(tab).overall, sourceName);
     }
     setJob(null);

@@ -7,6 +7,7 @@ import type {
   TableSchema, TabularResult,
 } from '../types';
 import type { ExportFormat, OriginalData, WorkerRequest, WorkerResponse } from './protocol';
+import type { TstrResult } from './tstr';
 import { columnValues } from './profile';
 import { getDataset } from './store';
 import { generateInvoices } from './invoice';
@@ -59,6 +60,13 @@ export interface DocumentJob {
 
 export type EngineJob = TabularJob | RelationalJob | DocumentJob;
 
+/** What the TSTR test needs to rebuild a train-only generator: the job's schema and settings, and its upload. */
+export interface TstrSource {
+  schema: ColumnSchema[];
+  config: GenerationConfig & { seed: number };
+  fileId: string;
+}
+
 const nextFrame = () => new Promise<void>(r => setTimeout(r, 0));
 
 export type ProgressListener = (stage: GenerationStageId, fraction: number, detail?: string) => void;
@@ -88,6 +96,7 @@ class EngineClient {
   private dataJobId: string | null = null;
   private queries = new Map<number, { resolve: (p: PreviewPage) => void; reject: (e: Error) => void }>();
   private exports = new Map<number, { resolve: (r: { blob: Blob; ext: string }) => void; reject: (e: Error) => void }>();
+  private tstrs = new Map<number, { resolve: (r: TstrResult) => void; reject: (e: Error) => void }>();
   private nextQueryId = 1;
   private jobCounter = 0;
 
@@ -114,6 +123,8 @@ class EngineClient {
     this.queries.clear();
     this.exports.forEach(q => q.reject(err));
     this.exports.clear();
+    this.tstrs.forEach(q => q.reject(err));
+    this.tstrs.clear();
   }
 
   private handle(msg: WorkerResponse) {
@@ -146,6 +157,14 @@ class EngineClient {
       case 'exportResult':
         this.exports.get(msg.requestId)?.resolve({ blob: msg.blob, ext: msg.ext });
         this.exports.delete(msg.requestId);
+        break;
+      case 'tstrResult':
+        this.tstrs.get(msg.requestId)?.resolve(msg.result);
+        this.tstrs.delete(msg.requestId);
+        break;
+      case 'tstrError':
+        this.tstrs.get(msg.requestId)?.reject(new Error(msg.message));
+        this.tstrs.delete(msg.requestId);
         break;
       case 'exportError':
         this.exports.get(msg.requestId)?.reject(new Error(msg.message));
@@ -200,6 +219,21 @@ class EngineClient {
     return new Promise((resolve, reject) => {
       this.exports.set(requestId, { resolve, reject });
       worker.postMessage({ type: 'export', requestId, jobId, format });
+    });
+  }
+
+  /**
+   * TSTR utility test (Train on Synthetic, Test on Real) on the uploaded file, in the worker.
+   * Needs the upload to still be in memory; it is re-read here and never leaves the browser.
+   */
+  runTstr(source: TstrSource, target: string): Promise<TstrResult> {
+    const original = originalFor(source.schema, source.fileId);
+    if (!original) return Promise.reject(new Error('The uploaded file is no longer in memory. Upload it again to run this test.'));
+    const worker = this.ensureWorker();
+    const requestId = this.nextQueryId++;
+    return new Promise((resolve, reject) => {
+      this.tstrs.set(requestId, { resolve, reject });
+      worker.postMessage({ type: 'tstr', requestId, schema: source.schema, config: source.config, original, target });
     });
   }
 

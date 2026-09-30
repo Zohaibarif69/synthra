@@ -206,6 +206,10 @@ export function generateTabular(input: TabularJobInput, onProgress?: GeneratePro
 
   // ── Build a plan per column ──
   const copulaColumns: { planIndex: number; name: string }[] = [];
+  // Profiles learned by this version carry latent correlations; older saved profiles don't, and keep
+  // generating exactly as before (numeric columns only in the copula).
+  const latent = profile?.latentCorrelations;
+  const latentNames = new Set((latent ?? []).flatMap(c => [c.a, c.b]));
   const plans: ColumnPlan[] = schema.map((col, index) => {
     const rng = root.derive(`col:${index}:${col.name}`);
     const p = findProfile(col, profile);
@@ -217,6 +221,27 @@ export function generateTabular(input: TabularJobInput, onProgress?: GeneratePro
 
     const categorical = (pool: CategoryPool) => {
       plan.pool = pool;
+      // With latent correlations, the category is read off this column's correlated normal value, so it keeps
+      // its relationships with the other columns (e.g. contract type ↔ churn ↔ tenure).
+      if (latent && p && latentNames.has(p.name) && pool.values.length >= 2) {
+        const k = copulaColumns.length;
+        copulaColumns.push({ planIndex: index, name: p.name });
+        const total = pool.weights.reduce((a, w) => a + w, 0) || 1;
+        const cum: number[] = [];
+        let acc = 0;
+        for (const w of pool.weights) { acc += w / total; cum.push(acc); }
+        plan.gen = ctx => {
+          if (edge.rareCategories && pool.rare.length && rng.chance(EDGE_RATES.rareCategory)) {
+            ctx.flag = FLAG.RARE;
+            return rng.pick(pool.rare);
+          }
+          const u = normalCdf(ctx.z[k]);
+          let c = 0;
+          while (c < cum.length - 1 && u > cum[c]) c++;
+          return pool.values[c];
+        };
+        return;
+      }
       plan.gen = ctx => {
         if (edge.rareCategories && pool.rare.length && rng.chance(EDGE_RATES.rareCategory)) {
           ctx.flag = FLAG.RARE;
@@ -482,7 +507,7 @@ export function generateTabular(input: TabularJobInput, onProgress?: GeneratePro
   const k = copulaColumns.length;
   const corr: number[][] = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (i === j ? 1 : 0)));
   if (profile) {
-    for (const c of profile.correlations) {
+    for (const c of latent ?? profile.correlations) {
       const a = copulaColumns.findIndex(x => x.name === c.a);
       const b = copulaColumns.findIndex(x => x.name === c.b);
       if (a >= 0 && b >= 0) { corr[a][b] = c.r; corr[b][a] = c.r; }

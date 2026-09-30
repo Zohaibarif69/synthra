@@ -10,7 +10,7 @@
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Gemini](https://img.shields.io/badge/AI-Google%20Gemini-8B5CF6?logo=googlegemini&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-123%20passing-22C55E)
+![Tests](https://img.shields.io/badge/tests-134%20passing-22C55E)
 ![Deploy](https://img.shields.io/badge/deploy-Vercel-000000?logo=vercel&logoColor=white)
 
 </div>
@@ -35,6 +35,8 @@ a thin AI layer that sends Google Gemini column names and a few masked sample ro
   rules, verified afterwards with statistical tests.
 - **Measured quality.** A Quality Observatory scores fidelity, integrity, rules, uniqueness, nulls and privacy,
   and shows the formula behind every number.
+- **Proven useful for ML.** A built-in TSTR test trains a model on synthetic data and checks it on real rows it
+  has never seen, so you know the data teaches models what real data would.
 - **Reproducible.** The same seed and settings always produce byte-identical exports.
 - **Built-in safeguards.** Generated documents are watermarked and use fictional banks and `TEST-` identifiers,
   so they can't pass as real financial documents.
@@ -45,7 +47,7 @@ a thin AI layer that sends Google Gemini column names and a few masked sample ro
 
 | Feature | What it does |
 | --- | --- |
-| **Tabular data** | Learns percentiles and category frequencies, preserves numeric correlations with a Gaussian copula, and generates up to 1M rows with your row count, seed, null rate, outlier rate and edge cases (boundaries, rare categories, long text, near-duplicates) |
+| **Tabular data** | Learns percentiles and category frequencies, and keeps relationships between numbers, categories and yes/no columns with a Gaussian copula (e.g. *month-to-month customers churn more*). Generates up to 1M rows with your row count, seed, null rate, outlier rate and edge cases (boundaries, rare categories, long text, near-duplicates) |
 | **Relational data** | Linked tables with 1:1, 1:N and N:N relationships (join tables created automatically), zero orphan rows, and cross-table rules such as `orders.total = SUM(quantity × unit_price)` |
 | **Invoices** | Regional templates for PK, IN, US, GB, DE, FR, CA and AU: local currency, date format and tax label (GST, VAT, Sales Tax…), with line items, tax and totals that always reconcile |
 | **Bank statements** | Realistic merchants and exact running balances, configured in plain language: *"last 90 days, savings account, never below 500"* |
@@ -57,6 +59,7 @@ a thin AI layer that sends Google Gemini column names and a few masked sample ro
 | --- | --- |
 | **Privacy controls** | Per column: keep, synthetic replacement, masking, SHA-256 hashing, or Laplace noise with a privacy budget ε |
 | **Validation** | Row counts, types, uniqueness, null rates, Kolmogorov–Smirnov test, category distance (TVD), correlation drift, referential integrity, totals, business rules and personal-data leak checks |
+| **ML utility (TSTR)** | *Train on Synthetic, Test on Real*: holds out 25% of the upload, has a fresh generator learn from the rest, then trains a random forest on real vs synthetic rows and scores both on the held-out rows (AUC, accuracy or R²). Reports how much of the real model's skill above guessing the synthetic data keeps, and says *not reliable* instead of a number when even real data can't predict the target. One click from the results screen, with the likely outcome column (e.g. *churned*) pre-selected |
 | **Quality Observatory** | Turns validation into scores with a radar chart, per-column real-vs-synthetic comparisons and severity-sorted warnings; exportable as a JSON or PDF report |
 | **Business rules** | Min/max ranges, allowed values, regex patterns and `column A < column B`, enforced during generation and verified afterwards |
 | **Misuse safeguards** | Fictional banks, `TEST-` tax IDs and account numbers, watermarked PDFs and previews, synthetic flags in exports, and CSV formula-injection protection |
@@ -98,7 +101,7 @@ flowchart LR
       direction TB
       Generate["Generate<br/>tabular · relational · invoices · statements"]
       Protect["Privacy transforms<br/>+ business rules"]
-      Validate["Validate<br/>KS test · integrity · leak checks"]
+      Validate["Validate<br/>KS test · integrity<br/>TSTR · leak checks"]
       Export["Export<br/>CSV · JSON · SQL · ZIP · PDF"]
       Generate --> Protect --> Validate
       Protect --> Export
@@ -144,7 +147,7 @@ flowchart LR
   B --> C["📈 Learn<br/>distributions<br/>correlations"]
   C --> D["⚙️ Generate<br/>seeded<br/>engine"]
   D --> E["🛡️ Protect<br/>privacy ·<br/>rules"]
-  E --> F["✅ Validate<br/>stats ·<br/>integrity"]
+  E --> F["✅ Validate<br/>stats · TSTR<br/>integrity"]
   F --> G["📊 Score<br/>quality<br/>report"]
   G --> H["📤 Export<br/>CSV · SQL<br/>PDF · ZIP"]
   classDef step fill:#EEF2FF,stroke:#6366F1,color:#1E1B4B;
@@ -187,7 +190,7 @@ unusable as forgeries:
 | Data engine | Web Worker, PapaParse, Faker.js, seeded mulberry32 RNG, Zod |
 | Export | jsPDF + AutoTable, JSZip |
 | AI & infrastructure | Google Gemini API, Upstash Redis, Vercel |
-| Testing | Vitest (123 tests) |
+| Testing | Vitest (134 tests) |
 
 ## Project layout
 
@@ -240,19 +243,6 @@ on the server (`src/lib/ai/server.ts`).
 - On the free tier Google may use requests to improve its products, so use test or public data. Detected
   personal values are masked before sending either way.
 
-### AI cache and rate limit
-
-Every AI answer is cached for 7 days under a SHA-256 hash of the request, so repeating a request is instant and
-uses no Gemini quota. Each visitor may make 20 AI requests per minute per route.
-
-- **With Upstash Redis** (`UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`, or the `KV_REST_API_URL` /
-  `KV_REST_API_TOKEN` pair Vercel adds when you connect Upstash), the cache and limit are shared by every server
-  instance, which matters on Vercel.
-- **Without it**, both live in server memory, which is fine for local development.
-- If Redis is unreachable, the app makes one quick attempt, then uses memory for a minute. AI never waits on Redis.
-- Only a hash of the request and the model's answer are stored, never the prompt or sample rows. Upstash's free
-  tier (256 MB, 500K commands/month) is far more than this app needs.
-
 ### Voice input
 
 The **Describe your dataset**, **Describe the statements** and **Seller's business** boxes have a microphone
@@ -273,7 +263,7 @@ button that uses the browser's built-in speech recognition: free, with words app
 
 ## Tests
 
-`npm test` runs 123 unit tests in `src/lib/engine/__tests__/`:
+`npm test` runs 134 unit tests in `src/lib/engine/__tests__/`:
 
 | File | Covers |
 | --- | --- |
@@ -287,4 +277,6 @@ button that uses the browser's built-in speech recognition: free, with words app
 | `gemini.test.ts` | Gemini requests and error handling (invalid key, rate limit, safety block, timeout, firewall), JSON schema, every AI route |
 | `cache.test.ts` | Cache hits and misses, failures never cached, shared Redis cache, Redis outage fallback, 20-per-minute rate limit |
 | `voice.test.ts` | Urdu digit conversion, transcript joining, Urdu detection, error messages |
+| `tstr.test.ts` | TSTR targets (never IDs or personal data; outcome columns such as `churned` offered first), ≥ 85% utility on a churn dataset across seeds, R² and multi-class targets, "not reliable" for unpredictable targets, 75/25 holdout, reproducibility |
+| `latent.test.ts` | Inverse normal accuracy, category relationships learned into the profile, generated data keeps "month-to-month customers churn more", old saved profiles generate exactly as before |
 | `rename.test.ts` | Saved history, schemas and settings carried over from the previous app name |

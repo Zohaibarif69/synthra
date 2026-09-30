@@ -12,6 +12,7 @@ import { computeRuleValues } from './relational';
 import { rulesForTable } from './rules';
 import { csvParts, jsonParts, relationalJsonParts, sqlParts, type ExportTable } from './export';
 import { forbiddenValues, runRelationalPipeline, runTabularPipeline } from './pipeline';
+import { runTstr } from './tstr';
 
 const worker = self as unknown as {
   postMessage(message: WorkerResponse): void;
@@ -39,7 +40,7 @@ function analyzeTable(args: {
   profile?: DatasetProfile | null; original?: OriginalData | null; privacy: TabularResult['privacy']; started: number;
 }): TabularResult {
   const { schema, table, config, profile } = args;
-  const syntheticProfile = buildProfile(schema.map((column, c) => ({ column, values: table.data[c] })), table.rowCount, { includeSensitiveValues: true, maxTopValues: 50 });
+  const syntheticProfile = buildProfile(schema.map((column, c) => ({ column, values: table.data[c] })), table.rowCount, { includeSensitiveValues: true, maxTopValues: 50, latent: false });
   const original = args.original && profile ? { profile, columns: args.original.columns, rowCount: args.original.rowCount } : undefined;
   return {
     jobId: args.jobId,
@@ -235,6 +236,10 @@ worker.onmessage = (event) => {
     runExport(req)
       .then(({ blob, ext }) => worker.postMessage({ type: 'exportResult', requestId: req.requestId, blob, ext }))
       .catch(err => worker.postMessage({ type: 'exportError', requestId: req.requestId, message: (err as Error).message || 'Export failed.' }));
+  } else if (req.type === 'tstr') {
+    runTstr(req)
+      .then(result => worker.postMessage({ type: 'tstrResult', requestId: req.requestId, result }))
+      .catch(err => worker.postMessage({ type: 'tstrError', requestId: req.requestId, message: (err as Error).message || 'The utility test failed.' }));
   } else if (req.type === 'query') {
     try {
       worker.postMessage({ type: 'queryResult', requestId: req.requestId, page: runQuery(req) });

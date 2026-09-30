@@ -6,6 +6,7 @@ import type {
 } from '../types';
 import { columnKind, decimalsOf, toNumber } from './infer';
 import { formatDate, parseDateWithFormat } from './dates';
+import { latentCorrelations } from './latent';
 
 export interface ProfileInput {
   column: ColumnSchema;
@@ -17,6 +18,8 @@ export interface ProfileOptions {
   includeSensitiveValues?: boolean;
   /** Max categories kept per column. */
   maxTopValues?: number;
+  /** Compute latent correlations for the generator (default true; off for profiles of generated data). */
+  latent?: boolean;
 }
 
 const MAX_CORRELATION_COLUMNS = 30;
@@ -182,7 +185,9 @@ export function buildProfile(inputs: ProfileInput[], rowCount: number, opts: Pro
       if (c) correlations.push({ a: numeric[i].name, b: numeric[j].name, r: Math.round(c.r * 10000) / 10000, n: c.n });
     }
   }
-  return { rowCount, columnCount: inputs.length, columns, correlations };
+  const profile: DatasetProfile = { rowCount, columnCount: inputs.length, columns, correlations };
+  if (opts.latent !== false) profile.latentCorrelations = latentCorrelations(inputs, columns, numericView, MAX_CORRELATION_COLUMNS);
+  return profile;
 }
 
 export function columnValues(rows: DataRow[], key: string): Cell[] {

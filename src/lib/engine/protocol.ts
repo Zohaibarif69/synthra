@@ -4,6 +4,7 @@ import type {
   Cell, ColumnSchema, ConsistencyRule, DatasetProfile, ForbiddenLog, GenerationConfig, GenerationStageId, PreviewPage,
   RelationalResult, Relationship, TableSchema, TabularResult,
 } from '../types';
+import type { TstrResult } from './tstr';
 
 export interface OriginalData {
   /** Uploaded values keyed by source column name (only columns used by the schema). */
@@ -54,7 +55,17 @@ export interface QueryRequest {
   pageSize: number;
 }
 
-export type WorkerRequest = GenerateRequest | GenerateRelationalRequest | QueryRequest | ExportRequest;
+/** TSTR utility test on the uploaded rows (see tstr.ts). Stateless: everything it needs is in the request. */
+export interface TstrRequest {
+  type: 'tstr';
+  requestId: number;
+  schema: ColumnSchema[];
+  config: GenerationConfig & { seed: number };
+  original: OriginalData;
+  target: string;
+}
+
+export type WorkerRequest = GenerateRequest | GenerateRelationalRequest | QueryRequest | ExportRequest | TstrRequest;
 
 export type WorkerResponse =
   | { type: 'progress'; jobId: string; stage: GenerationStageId; fraction: number; detail?: string }
@@ -64,4 +75,6 @@ export type WorkerResponse =
   | { type: 'queryResult'; requestId: number; page: PreviewPage }
   | { type: 'queryError'; requestId: number; message: string }
   | { type: 'exportResult'; requestId: number; blob: Blob; ext: string }
-  | { type: 'exportError'; requestId: number; message: string };
+  | { type: 'exportError'; requestId: number; message: string }
+  | { type: 'tstrResult'; requestId: number; result: TstrResult }
+  | { type: 'tstrError'; requestId: number; message: string };
